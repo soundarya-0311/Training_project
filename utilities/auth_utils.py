@@ -1,5 +1,6 @@
 import traceback
 import os
+from typing import List
 from passlib.context import CryptContext
 from fastapi import Depends, HTTPException, status
 from fastapi.security import OAuth2PasswordBearer
@@ -72,3 +73,14 @@ def get_current_user(token: str = Depends(oauth2_scheme), db: Session = Depends(
     if user is None:
         raise HTTPException(status_code = status.HTTP_404_NOT_FOUND, detail = "User Not Found")
     return user
+
+class RoleChecker:
+    def __init__(self, allowed_roles: List[str]):
+        self.allowed_roles = allowed_roles
+    def __call__(self, current_user = Depends(get_current_user)):
+        if current_user.role in self.allowed_roles:
+            return True
+        raise HTTPException(
+            status_code = status.HTTP_403_FORBIDDEN,
+            detail = "You have no permission to access."
+        )

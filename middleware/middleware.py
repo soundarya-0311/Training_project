@@ -1,7 +1,7 @@
 from fastapi import HTTPException, status
 from fastapi.middleware.cors import CORSMiddleware
 from starlette.middleware.base import BaseHTTPMiddleware
-from utlilities.auth_utils import verify_token
+from utilities.auth_utils import verify_token
 from main import app
 
 class AuthenticationMiddleware(BaseHTTPMiddleware):
