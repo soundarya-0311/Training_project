@@ -1,13 +1,13 @@
 from fastapi import HTTPException, status
 from fastapi.middleware.cors import CORSMiddleware
 from starlette.middleware.base import BaseHTTPMiddleware
-from utlilities.auth_utils import verify_token
+from utilities.auth_utils import verify_token
 from main import app
 
 class AuthenticationMiddleware(BaseHTTPMiddleware):
     async def dispatch(self, request, call_next):
         # Skip authentication for publicly accessible paths
-        if request.url.path in ["/docs", "/openapi.json", "/favicon.ico", "/login"]:
+        if request.url.path in ["/docs", "/openapi.json", "/favicon.ico", "/login", "/user_register"]:
             return await call_next(request)
         token = request.headers.get("Authorization")
         if token and token.startswith("Bearer"):

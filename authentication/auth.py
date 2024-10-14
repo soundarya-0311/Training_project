@@ -5,13 +5,13 @@ from fastapi.security import OAuth2PasswordRequestForm
 from sqlalchemy.orm import Session
 from database.database import get_db
 from database.models import Users, Tokens
-from schemas.schemas import RegisterCredentials
+from schemas.schemas import RegisterCredentials, rolename
 from utilities.auth_utils import get_hashed_password,verify_password,create_access_token,create_refresh_token,get_current_user,oauth2_scheme
 
 router = APIRouter()
 
 @router.post("/user_register")
-def user_registeration(user: RegisterCredentials, db: Session = Depends(get_db)):
+def user_registeration(user: RegisterCredentials, role: rolename, db: Session = Depends(get_db)):
     try:
         existing_user = db.query(Users).filter(Users.email == user.email, Users.is_active == True).first()
         if existing_user:
@@ -19,7 +19,7 @@ def user_registeration(user: RegisterCredentials, db: Session = Depends(get_db))
         
         hash_password = get_hashed_password(user.password) #Hashing pasword before adding new user to database
         
-        new_user = Users(username = user.username, email = user.email, hashed_password = hash_password) #Adding to db
+        new_user = Users(username = user.username, email = user.email, hashed_password = hash_password, role = role) #Adding to db
         db.add(new_user)
         db.commit()
         
