@@ -1,4 +1,4 @@
-fastapi[standard]
+fastapi[standard]==0.112.0
 SQLAlchemy==2.0.35
 bcrypt==4.2.0
 psycopg2-binary==2.9.9
@@ -8,3 +8,4 @@ python-jose==3.3.0
 python-dotenv==1.0.1
 python-multipart==0.0.12
 PyJWT==2.9.0
+python-json-logger==2.0.7

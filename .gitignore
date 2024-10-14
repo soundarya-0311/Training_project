@@ -1,3 +1,7 @@
+#secrets and environment files
 .env
 .venv
 __pycache__
+
+#log file
+info.log
