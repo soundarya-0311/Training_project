@@ -4,7 +4,7 @@ from starlette.middleware.base import BaseHTTPMiddleware
 from utilities.auth_utils import verify_token
 from main import app
 
-class AuthenticationMiddleware(BaseHTTPMiddleware):
+class CustomMiddleware(BaseHTTPMiddleware):
     async def dispatch(self, request, call_next):
         # Skip authentication for publicly accessible paths
         if request.url.path in ["/docs", "/openapi.json", "/favicon.ico", "/login", "/user_register"]:
@@ -17,15 +17,8 @@ class AuthenticationMiddleware(BaseHTTPMiddleware):
         response = await call_next(request)
         return response
 
-class RoleBasedAccess(BaseHTTPMiddleware):
-    async def dispatch(self, request, call_next):
-        if request.url.path in ["/docs", "/openapi.json", "/favicon.ico", "/login", "/user_register"]:
-            return await call_next(request)
-        if RoleChecker(["ADMIN"]):
-            return await call_next(request)       
-        
-app.add_middleware(RoleBasedAccess)
-app.add_middleware(AuthenticationMiddleware)
+
+app.add_middleware(CustomMiddleware)
 
 app.add_middleware(
     CORSMiddleware,

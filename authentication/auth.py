@@ -6,7 +6,7 @@ from sqlalchemy.orm import Session
 from database.database import get_db
 from database.models import Users, Tokens
 from schemas.schemas import RegisterCredentials, rolename
-from utilities.auth_utils import get_hashed_password,verify_password,create_access_token,create_refresh_token,get_current_user,oauth2_scheme
+from utilities.auth_utils import get_hashed_password,verify_password,create_access_token,create_refresh_token,get_current_user,oauth2_scheme,RoleChecker
 
 router = APIRouter()
 
@@ -56,8 +56,8 @@ def login(formdata: OAuth2PasswordRequestForm = Depends(), db: Session = Depends
                 headers = {"WWW-Authenticate" : "Bearer"}
             )
         
-        access_token = create_access_token(data = {"sub": user.username})
-        refresh_token = create_refresh_token(data = {"sub" : user.username})
+        access_token = create_access_token(data = {"sub": user.username, "role" : str(user.role.value)})
+        refresh_token = create_refresh_token(data = {"sub" : user.username, "role" : str(user.role.value)})
         
         tokentable = Tokens(user_id = user.id, access_token = access_token, refresh_token = refresh_token)
         db.add(tokentable)
@@ -84,9 +84,9 @@ def login(formdata: OAuth2PasswordRequestForm = Depends(), db: Session = Depends
             content = {"message" : "Something Went Wrong"}
         )
         
-@router.get("/check_current_user")
-def check_current_user(user = Depends(get_current_user)):
-    return {"current_user" : user}
+@router.get("/check_user_details")
+def check_all_users(allowed_role : bool = Depends(RoleChecker(["ADMIN"]))):
+    return "Admin Access Provided" if allowed_role else "Access Denied."
 
 @router.post('/logout')
 def logout(user = Depends(get_current_user) , token = Depends(oauth2_scheme),db: Session = Depends(get_db)):
