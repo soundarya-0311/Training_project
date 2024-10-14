@@ -1,6 +1,7 @@
-from sqlalchemy import Column, Integer,String,Boolean,DateTime,ForeignKey
+from sqlalchemy import Column, Integer,String,Boolean,DateTime,ForeignKey,Enum
 from datetime import datetime
 from database.database import Base
+from database.db_enum import role
 
 class BaseModel(Base):
     __abstract__ = True
@@ -11,11 +12,13 @@ class BaseModel(Base):
 
 class Users(BaseModel):
     __tablename__ = "users"
+    __table_args__ = {"extend_existing" : True}
     
     id = Column(Integer, primary_key=True, autoincrement = True)
     username = Column(String, nullable = False)
     email = Column(String, unique=True, nullable=False)
     hashed_password = Column(String, nullable = False)
+    role = Column(Enum(role), nullable = False)
 
 class Tokens(BaseModel):
     __tablename__ = "tokens"
