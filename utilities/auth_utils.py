@@ -40,9 +40,10 @@ def verify_token(token: str):
     try:
         payload = jwt.decode(token, SECRET_KEY, algorithms = [ALGORITHM])
         username: str = payload.get("sub")
-        if username is None:
+        role: str = payload.get("role")
+        if username is None or role is None:
             return None
-        return username
+        return username, role
     except jwt.PyJWTError:
         traceback.print_exc()
         return None
@@ -62,7 +63,7 @@ def get_current_user(token: str = Depends(oauth2_scheme), db: Session = Depends(
             detail = "Login to access",
             headers = {"WWW-Authenticate" : "Bearer"},
         )
-    username = verify_token(token)
+    username = verify_token(token)[0]
     if username is None:
         raise HTTPException(
             status_code = status.HTTP_401_UNAUTHORIZED,

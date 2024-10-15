@@ -92,6 +92,14 @@ def login(formdata: OAuth2PasswordRequestForm = Depends(), db: Session = Depends
 def check_all_users(allowed_role : bool = Depends(RoleChecker(["ADMIN"]))):
     return "Admin Access Provided" if allowed_role else "Access Denied."
 
+@router.get("/common_access")
+def common_access(_ = Depends(get_current_user)):
+    return "Read Access Provided"
+
+@router.post("/write_access")
+def write_access(user_id: int, _= Depends(get_current_user)):
+    return {"user_id" : user_id}        
+
 @router.post('/logout')
 def logout(user = Depends(get_current_user) , token = Depends(oauth2_scheme),db: Session = Depends(get_db)):
     try:
