@@ -20,8 +20,8 @@ class Users(BaseModel):
     hashed_password = Column(String, nullable = False)
     role = Column(Enum(role), nullable = False)
 
-class Tokens(BaseModel):
-    __tablename__ = "tokens"
+class JWT_Tokens(BaseModel):
+    __tablename__ = "jwt_tokens"
     
     id = Column(Integer, primary_key=True, autoincrement=True)
     user_id = Column(Integer, ForeignKey("users.id"))
