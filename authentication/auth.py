@@ -13,9 +13,13 @@ router = APIRouter()
 @router.post("/user_register")
 def user_registeration(user: RegisterCredentials, role: rolename, db: Session = Depends(get_db)):
     try:
-        existing_user = db.query(Users).filter(Users.email == user.email, Users.is_active == True).first()
-        if existing_user:
+        existing_mail = db.query(Users).filter(Users.email == user.email, Users.is_active == True).first()
+        if existing_mail:
             raise HTTPException(status_code = status.HTTP_400_BAD_REQUEST, detail = "Email Already Registered")
+        
+        existing_username = db.query(Users).filter(Users.username == user.username, Users.is_active == True).first()
+        if existing_username:
+            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail = "Username Already Registered")
         
         hash_password = get_hashed_password(user.password) #Hashing pasword before adding new user to database
         
@@ -87,6 +91,14 @@ def login(formdata: OAuth2PasswordRequestForm = Depends(), db: Session = Depends
 @router.get("/check_user_details")
 def check_all_users(allowed_role : bool = Depends(RoleChecker(["ADMIN"]))):
     return "Admin Access Provided" if allowed_role else "Access Denied."
+
+@router.get("/common_access")
+def common_access(_ = Depends(get_current_user)):
+    return "Read Access Provided"
+
+@router.post("/write_access")
+def write_access(user_id: int, _= Depends(get_current_user)):
+    return {"user_id" : user_id}        
 
 @router.post('/logout')
 def logout(user = Depends(get_current_user) , token = Depends(oauth2_scheme),db: Session = Depends(get_db)):
