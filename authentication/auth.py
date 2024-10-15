@@ -95,6 +95,8 @@ def check_all_users(allowed_role : bool = Depends(RoleChecker(["ADMIN"]))):
 @router.get("/view_user_data")
 def view_user_data(user = Depends(get_current_user), db: Session = Depends(get_db)):
     try:
+        """This API is to view all details of all users which can be done only by admin. 
+            If other user tries to view they can only view their details."""
         if user.role.value == "ADMIN":
             user_query = db.query(Users).filter(Users.is_active == True).all()
         else:
@@ -112,6 +114,7 @@ def view_user_data(user = Depends(get_current_user), db: Session = Depends(get_d
 @router.post("/view_specific_user")
 def write_access(user_id: int, user = Depends(get_current_user), db: Session = Depends(get_db)):
     try:
+        """This API used to view details of specific user and this is an admin only accessible route"""
         user_query = db.query(Users).filter(Users.id == user_id,Users.is_active == True).first()
         return user_query
     except Exception:
@@ -124,6 +127,8 @@ def write_access(user_id: int, user = Depends(get_current_user), db: Session = D
 @router.delete("/delete_user_details")
 def delete_details(user_id: int, user = Depends(get_current_user), db: Session = Depends(get_db)):
     try:
+        """This API is to delete the specific user from database.
+        Only Admin can delete any user's detail. Others can only delete theirs"""
         if user.role.value == "ADMIN":
             user_query = db.query(Users).filter(Users.id == user_id, Users.is_active == True).first()
             if not user_query:
