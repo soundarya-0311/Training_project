@@ -4,7 +4,7 @@ from fastapi.responses import JSONResponse
 from fastapi.security import OAuth2PasswordRequestForm
 from sqlalchemy.orm import Session
 from database.database import get_db
-from database.models import Users, Tokens
+from database.models import Users, JWT_Tokens
 from schemas.schemas import RegisterCredentials, rolename
 from utilities.auth_utils import get_hashed_password,verify_password,create_access_token,create_refresh_token,get_current_user,oauth2_scheme,RoleChecker
 
@@ -59,7 +59,7 @@ def login(formdata: OAuth2PasswordRequestForm = Depends(), db: Session = Depends
         access_token = create_access_token(data = {"sub": user.username, "role" : str(user.role.value)})
         refresh_token = create_refresh_token(data = {"sub" : user.username, "role" : str(user.role.value)})
         
-        tokentable = Tokens(user_id = user.id, access_token = access_token, refresh_token = refresh_token)
+        tokentable = JWT_Tokens(user_id = user.id, access_token = access_token, refresh_token = refresh_token)
         db.add(tokentable)
         db.commit()
         
@@ -91,7 +91,7 @@ def check_all_users(allowed_role : bool = Depends(RoleChecker(["ADMIN"]))):
 @router.post('/logout')
 def logout(user = Depends(get_current_user) , token = Depends(oauth2_scheme),db: Session = Depends(get_db)):
     try:
-        existing_token = db.query(Tokens).filter(Tokens.user_id == user.id, Tokens.access_token == token,Tokens.is_active == True).first()
+        existing_token = db.query(JWT_Tokens).filter(JWT_Tokens.user_id == user.id, JWT_Tokens.access_token == token,JWT_Tokens.is_active == True).first()
         if not existing_token:
             raise HTTPException(status_code = status.HTTP_404_NOT_FOUND, detail = "No Access found for the user")
         existing_token.is_active = False

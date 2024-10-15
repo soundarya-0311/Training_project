@@ -8,7 +8,7 @@ from sqlalchemy.orm import Session
 from datetime import datetime, timedelta,timezone
 import jwt
 from database.database import get_db
-from database.models import Users,Tokens
+from database.models import Users,JWT_Tokens
 
 
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated = "auto")
@@ -55,7 +55,7 @@ def create_refresh_token(data: dict):
     return encoded_jwt
 
 def get_current_user(token: str = Depends(oauth2_scheme), db: Session = Depends(get_db)): #for protected routes
-    db_token = db.query(Tokens).filter(Tokens.access_token == token).first()
+    db_token = db.query(JWT_Tokens).filter(JWT_Tokens.access_token == token).first()
     if db_token.is_active == False:
         raise HTTPException(
             status_code = status.HTTP_401_UNAUTHORIZED,
