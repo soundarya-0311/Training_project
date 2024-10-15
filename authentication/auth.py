@@ -13,9 +13,13 @@ router = APIRouter()
 @router.post("/user_register")
 def user_registeration(user: RegisterCredentials, role: rolename, db: Session = Depends(get_db)):
     try:
-        existing_user = db.query(Users).filter(Users.email == user.email, Users.is_active == True).first()
-        if existing_user:
+        existing_mail = db.query(Users).filter(Users.email == user.email, Users.is_active == True).first()
+        if existing_mail:
             raise HTTPException(status_code = status.HTTP_400_BAD_REQUEST, detail = "Email Already Registered")
+        
+        existing_username = db.query(Users).filter(Users.username == user.username, Users.is_active == True).first()
+        if existing_username:
+            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail = "Username Already Registered")
         
         hash_password = get_hashed_password(user.password) #Hashing pasword before adding new user to database
         
