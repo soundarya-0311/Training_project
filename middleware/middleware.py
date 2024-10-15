@@ -62,8 +62,8 @@ async def log_middleware(request: Request, call_next):
 
 #Structure for rbac
 Roles = {
-    "admin" : ["read", "write","update","delete"],
-    "user" : ["read"]
+    "admin" : ["/common_access", "/write_access"],
+    "user" : ["/common_access"]
 }
 
 def grant_access(user_role, required_permission):
@@ -72,27 +72,17 @@ def grant_access(user_role, required_permission):
         return True
     return False
 
-def method_to_action(method: str):
-    method_mapping = {
-        "GET" : "read",
-        "POST" : "write",
-        "PUT" : "update",
-        "DELETE" : "delete"
-    }
-    return method_mapping.get(method.upper(), "read")
 
 class RBACMiddleware(BaseHTTPMiddleware):
     async def dispatch(self, request, call_next):
         try:
             if request.url.path in ["/docs", "/openapi.json", "/favicon.ico", "/login", "/user_register"]:
                     return await call_next(request)
-            request_method = str(request.method).upper()
-            action = method_to_action(request_method)
             token = request.headers.get("Authorization")
             if token and token.startswith("Bearer"):
                 token = token.split(" ")[1]
             role = verify_token(token)[1]
-            if not grant_access(role, action):
+            if not grant_access(role, request.url.path):
                 raise HTTPException(status_code = status.HTTP_403_FORBIDDEN, detail = "Access Denied")
             response = await call_next(request)
             return response
