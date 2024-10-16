@@ -9,10 +9,8 @@ from main import app
 class CustomMiddleware(BaseHTTPMiddleware):
     async def dispatch(self, request, call_next):
         try:
-            if request.url: #To skip error during redirection to swagger
-                return await call_next(request)
             # Skip authentication for publicly accessible paths
-            if request.url.path in ["/docs", "/openapi.json", "/favicon.ico", "/login", "/user_register"]:
+            if request.url.path in ["/docs", "/openapi.json", "/favicon.ico", "/auth/login", "/auth/user_register"]:
                 return await call_next(request)
             token = request.headers.get("Authorization")
             if token and token.startswith("Bearer"):
@@ -32,17 +30,6 @@ class CustomMiddleware(BaseHTTPMiddleware):
                 status_code = status.HTTP_500_INTERNAL_SERVER_ERROR,
                 content = {"message" : "Something went wrong"}
             )
-
-
-app.add_middleware(CustomMiddleware)
-
-app.add_middleware(
-    CORSMiddleware,
-    allow_origins=["*"],  # Set the allowed origins here (e.g., ["http://localhost", "https://example.com"])
-    allow_credentials=True,
-    allow_methods=["*"],  # Set the allowed HTTP methods here (e.g., ["GET", "POST"])
-    allow_headers=["*"],
-)
 
 logging.basicConfig(filename='info.log', level = logging.DEBUG)
 
@@ -64,8 +51,8 @@ async def log_middleware(request: Request, call_next):
 
 #Structure for rbac
 Roles = {
-    "admin" : ["/check_user_details","/view_user_data", "/view_specific_user", "/delete_user_details", "/edit_user_details", "/search_users"],
-    "user" : ["/view_user_data", "/delete_user_details", "/edit_user_details", "/search_users"]
+    "admin" : ["/services/check_user_details","/services/view_user_data", "/services/view_specific_user", "/services/delete_user_details", "/services/edit_user_details", "/services/search_users", "/services/filter_users"],
+    "user" : ["/services/view_user_data", "/services/delete_user_details", "/services/edit_user_details", "/services/search_users"]
 }
 
 def grant_access(user_role, required_permission):
@@ -77,10 +64,8 @@ def grant_access(user_role, required_permission):
 
 class RBACMiddleware(BaseHTTPMiddleware):
     async def dispatch(self, request, call_next):
-        try:
-            if request.url:
-                return await call_next(request)                
-            if request.url.path in ["/docs", "/openapi.json", "/favicon.ico", "/login", "/user_register"]:
+        try:               
+            if request.url.path in ["/docs", "/openapi.json", "/favicon.ico", "/auth/login", "/auth/user_register", "/auth/logout"]:
                     return await call_next(request)
             token = request.headers.get("Authorization")
             if token and token.startswith("Bearer"):
@@ -105,3 +90,11 @@ class RBACMiddleware(BaseHTTPMiddleware):
             )
 
 app.add_middleware(RBACMiddleware)
+app.add_middleware(CustomMiddleware)
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],  # Set the allowed origins here (e.g., ["http://localhost", "https://example.com"])
+    allow_credentials=True,
+    allow_methods=["*"],  # Set the allowed HTTP methods here (e.g., ["GET", "POST"])
+    allow_headers=["*"],
+)

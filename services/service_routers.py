@@ -1,13 +1,17 @@
 import traceback
+from datetime import datetime, timezone, timedelta
 from fastapi import APIRouter,Depends,HTTPException,status
 from fastapi.responses import JSONResponse
 from sqlalchemy.orm import Session
 from database.database import get_db
-from database.models import Users
+from database.models import Users, JWT_Tokens
 from schemas.schemas import EditUserDetails, SearchUsers
 from utilities.auth_utils import get_hashed_password,get_current_user,RoleChecker
 
-router = APIRouter()
+router = APIRouter(
+    tags=["Services"],
+    prefix = "/services"
+)
 
 
 @router.get("/check_user_details")
@@ -130,7 +134,7 @@ def edit_user_details(update_details: EditUserDetails, user_id : int, current_us
 @router.post("/search_users")
 def search_users(search_details: SearchUsers, current_user = Depends(get_current_user), db: Session = Depends(get_db)):
     try:
-        """Basic Search API. This Api searches and retrieves the details of user based on their name or role"""
+        """Basic Search API. This Api is common for both admin and users to search and retrieve the details of user based on their name or role"""
         if search_details.username and search_details.role:
             search_users_query = db.query(Users).filter(Users.username == search_details.username, Users.role == search_details.role.upper(), Users.is_active == True).all()
         elif search_details.username:
@@ -156,4 +160,23 @@ def search_users(search_details: SearchUsers, current_user = Depends(get_current
         return JSONResponse(
             status_code = status.HTTP_500_INTERNAL_SERVER_ERROR,
             content = {"message" : "Something went wrong"}
+        )
+
+@router.post("/filter_users")
+def filter_users(user_status: bool, current_user = Depends(get_current_user), db: Session = Depends(get_db)):
+    try:
+        """This Api is and admin only accessible API used to filter the users based on their status
+           user_status - Active/InActive in boolean.
+           Active - loggedin Users.
+           Inactive - loggedout Users. 
+           Based on recent activity here last 30 minutes activity"""
+        recent_update = datetime.now(timezone.utc) - timedelta(minutes = 30) 
+        track_status_query = db.query(Users).join(JWT_Tokens, Users.id == JWT_Tokens.user_id).\
+                             filter(JWT_Tokens.is_active == user_status, JWT_Tokens.updated_ts >= recent_update).all()
+        return track_status_query
+    except Exception:
+        traceback.print_exc()
+        return JSONResponse(
+            status_code = status.HTTP_500_INTERNAL_SERVER_ERROR,
+            content = {"message":"Something Went Wrong"}
         )
