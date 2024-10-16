@@ -31,21 +31,28 @@ class CustomMiddleware(BaseHTTPMiddleware):
                 content = {"message" : "Something went wrong"}
             )
 
-logging.basicConfig(filename='info.log', level = logging.DEBUG)
+logging.basicConfig(filename='info.log', level = logging.DEBUG, format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
 
-def log_info(req_body, res_body):
+def log_info(req_body, res_body, method, url,path):
     logging.info(req_body)
     logging.info(res_body)
+    logging.info(method)
+    logging.info(path)
+    logging.info(url)
+    
     
 @app.middleware('http')
 async def log_middleware(request: Request, call_next):
     req_body = await request.body()
+    method = request.method
+    path = request.url.path
+    url = request.url
     response = await call_next(request)
     res_body = b''
     async for chunk in response.body_iterator:
         res_body += chunk
     background_task = BackgroundTasks()
-    background_task.add_task(log_info,req_body.decode('utf-8'), res_body.decode('utf-8'))
+    background_task.add_task(log_info,req_body.decode('utf-8'), res_body.decode('utf-8'), method,path,url)
     return Response(content = res_body, status_code = response.status_code,
                     headers = dict(response.headers), media_type = response.media_type, background = background_task)
 
