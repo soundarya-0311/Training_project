@@ -1,4 +1,5 @@
 from enum import Enum
+from typing import Optional
 from pydantic import BaseModel
 
 class rolename(str, Enum):
@@ -13,3 +14,8 @@ class RegisterCredentials(BaseModel):
 class Token(BaseModel):
     access_token : str
     token_type : str
+
+class EditUserDetails(BaseModel):
+    email: Optional[str] = None
+    username: Optional[str] = None
+    password: Optional[str] = None
