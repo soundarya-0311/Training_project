@@ -4,7 +4,7 @@ from fastapi.responses import JSONResponse
 from sqlalchemy.orm import Session
 from database.database import get_db
 from database.models import Users
-from schemas.schemas import EditUserDetails
+from schemas.schemas import EditUserDetails, SearchUsers
 from utilities.auth_utils import get_hashed_password,get_current_user,RoleChecker
 
 router = APIRouter()
@@ -127,4 +127,33 @@ def edit_user_details(update_details: EditUserDetails, user_id : int, current_us
             content = {"message" : "Something Went Wrong"}
         )
             
+@router.post("/search_users")
+def search_users(search_details: SearchUsers, current_user = Depends(get_current_user), db: Session = Depends(get_db)):
+    try:
+        """Basic Search API. This Api searches and retrieves the details of user based on their name or role"""
+        if search_details.username and search_details.role:
+            search_users_query = db.query(Users).filter(Users.username == search_details.username, Users.role == search_details.role.upper(), Users.is_active == True).all()
+        elif search_details.username:
+            search_users_query = db.query(Users).filter(Users.username == search_details.username, Users.is_active == True).all()
+        elif search_details.role:
+            search_users_query = db.query(Users).filter(Users.role == search_details.role.upper(), Users.is_active == True).all()
+        else:
+            raise HTTPException(status_code = status.HTTP_400_BAD_REQUEST, detail = "Enter username or role to proceed")
+        
+        if not search_users_query:
+            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail = "Invalid Username or role.")
+        
+        return search_users_query
     
+    except HTTPException as e:
+        traceback.print_exc()
+        return JSONResponse(
+            status_code=e.status_code,
+            content = e.detail
+        )
+    except Exception:
+        traceback.print_exc()
+        return JSONResponse(
+            status_code = status.HTTP_500_INTERNAL_SERVER_ERROR,
+            content = {"message" : "Something went wrong"}
+        )
