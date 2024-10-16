@@ -9,6 +9,8 @@ from main import app
 class CustomMiddleware(BaseHTTPMiddleware):
     async def dispatch(self, request, call_next):
         try:
+            if request.url: #To skip error during redirection to swagger
+                return await call_next(request)
             # Skip authentication for publicly accessible paths
             if request.url.path in ["/docs", "/openapi.json", "/favicon.ico", "/login", "/user_register"]:
                 return await call_next(request)
@@ -76,6 +78,8 @@ def grant_access(user_role, required_permission):
 class RBACMiddleware(BaseHTTPMiddleware):
     async def dispatch(self, request, call_next):
         try:
+            if request.url:
+                return await call_next(request)                
             if request.url.path in ["/docs", "/openapi.json", "/favicon.ico", "/login", "/user_register"]:
                     return await call_next(request)
             token = request.headers.get("Authorization")
