@@ -20,7 +20,7 @@ def verify_password(plain_password: str, hashed_password: str):
     return pwd_context.verify(plain_password, hashed_password)
 
 
-oauth2_scheme = OAuth2PasswordBearer(tokenUrl = "login") #For any token based authentication
+oauth2_scheme = OAuth2PasswordBearer(tokenUrl = "/auth/login") #For any token based authentication
 
 #JWT secret and algorithm
 

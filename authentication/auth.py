@@ -8,7 +8,10 @@ from database.models import Users, JWT_Tokens
 from schemas.schemas import RegisterCredentials, rolename
 from utilities.auth_utils import get_hashed_password,verify_password,create_access_token,create_refresh_token,get_current_user,oauth2_scheme
 
-router = APIRouter()
+router = APIRouter(
+    tags=["Authentication and Authorization"],
+    prefix = "/auth"
+)
 
 @router.post("/user_register")
 def user_registeration(user: RegisterCredentials, role: rolename, db: Session = Depends(get_db)):
