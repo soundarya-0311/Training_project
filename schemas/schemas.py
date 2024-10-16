@@ -19,3 +19,7 @@ class EditUserDetails(BaseModel):
     email: Optional[str] = None
     username: Optional[str] = None
     password: Optional[str] = None
+
+class SearchUsers(BaseModel):
+    username: Optional[str] = None
+    role: Optional[str] = None
