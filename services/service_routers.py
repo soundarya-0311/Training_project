@@ -23,7 +23,8 @@ def check_all_users(allowed_role : bool = Depends(RoleChecker(["ADMIN"]))):
 def view_user_data(user = Depends(get_current_user), db: Session = Depends(get_db)) -> Page[UserResponseSchema]:
     try:
         """This API is to view all details of all users which can be done only by admin. 
-            If other user tries to view they can only view their details."""
+            If other user tries to view they can only view their details. Pagination is implemented to limit the 
+            amount of records to be viewed per page"""
         if user.role.value == "ADMIN":
             user_query = db.query(Users).filter(Users.is_active == True)
         else:
