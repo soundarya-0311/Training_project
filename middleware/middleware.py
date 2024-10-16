@@ -62,8 +62,8 @@ async def log_middleware(request: Request, call_next):
 
 #Structure for rbac
 Roles = {
-    "admin" : ["/check_user_details","/view_user_data", "/view_specific_user", "/delete_user_details"],
-    "user" : ["/view_user_data", "/delete_user_details"]
+    "admin" : ["/check_user_details","/view_user_data", "/view_specific_user", "/delete_user_details", "/edit_user_details"],
+    "user" : ["/view_user_data", "/delete_user_details", "/edit_user_details"]
 }
 
 def grant_access(user_role, required_permission):

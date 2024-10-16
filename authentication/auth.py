@@ -5,7 +5,7 @@ from fastapi.security import OAuth2PasswordRequestForm
 from sqlalchemy.orm import Session
 from database.database import get_db
 from database.models import Users, JWT_Tokens
-from schemas.schemas import RegisterCredentials, rolename
+from schemas.schemas import RegisterCredentials, rolename, EditUserDetails
 from utilities.auth_utils import get_hashed_password,verify_password,create_access_token,create_refresh_token,get_current_user,oauth2_scheme,RoleChecker
 
 router = APIRouter()
@@ -129,17 +129,13 @@ def delete_details(user_id: int, user = Depends(get_current_user), db: Session =
     try:
         """This API is to delete the specific user from database.
         Only Admin can delete any user's detail. Others can only delete theirs"""
-        if user.role.value == "ADMIN":
+        if user.role.value == "ADMIN" or user_id == user.id:
             user_query = db.query(Users).filter(Users.id == user_id, Users.is_active == True).first()
             if not user_query:
                 raise HTTPException(status_code = status.HTTP_404_NOT_FOUND, detail = "User Not Found")
             user_query.is_active = False
         else:
-            if user.id == user_id:
-                user_query = db.query(Users).filter(Users.id == user_id, Users.is_active == True).first()
-                user_query.is_active = False  
-            else:
-                raise HTTPException(status_code = status.HTTP_400_BAD_REQUEST, detail = "You are not allowed to delete other users details") 
+            raise HTTPException(status_code = status.HTTP_400_BAD_REQUEST, detail = "You are not allowed to delete other users details") 
         
         db.add(user_query)
         db.commit()
@@ -162,6 +158,48 @@ def delete_details(user_id: int, user = Depends(get_current_user), db: Session =
         return JSONResponse(
             status_code = status.HTTP_500_INTERNAL_SERVER_ERROR,
             content = {"message" : "Something went wrong"}
+        )
+
+@router.put("/edit_user_details")
+def edit_user_details(update_details: EditUserDetails, user_id : int, current_user = Depends(get_current_user), db: Session = Depends(get_db)):
+    try:
+        if current_user.role.value == "ADMIN" or user_id == current_user.id:
+            user_details = db.query(Users).filter(Users.id == user_id, Users.is_active == True).first()
+        else:
+            raise HTTPException(status_code = status.HTTP_400_BAD_REQUEST, detail = "You are not allowed to update other users details") 
+        
+        if not user_details:
+            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail = "User Not Found or Inactive")
+        
+        if update_details.email:
+            user_details.email = update_details.email
+        if update_details.username:
+            user_details.username = update_details.username
+        if update_details.password:
+            user_details.hashed_password= get_hashed_password(update_details.password)
+        
+        db.add(user_details)
+        db.commit()
+        
+        return JSONResponse(
+            status_code = status.HTTP_200_OK,
+            content = {"message" : "Successfully Updated"}
+        )
+    
+    except HTTPException as e:
+        db.rollback()
+        traceback.print_exc()
+        return JSONResponse(
+            status_code=e.status_code,
+            content = e.detail
+        )
+    
+    except Exception:
+        db.rollback()
+        traceback.print_exc()
+        return JSONResponse(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            content = {"message" : "Something Went Wrong"}
         )
             
     
