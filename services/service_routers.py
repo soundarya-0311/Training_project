@@ -2,10 +2,12 @@ import traceback
 from datetime import datetime, timezone, timedelta
 from fastapi import APIRouter,Depends,HTTPException,status
 from fastapi.responses import JSONResponse
+from fastapi_pagination import Page 
+from fastapi_pagination.ext.sqlalchemy import paginate
 from sqlalchemy.orm import Session
 from database.database import get_db
 from database.models import Users, JWT_Tokens
-from schemas.schemas import EditUserDetails, SearchUsers
+from schemas.schemas import EditUserDetails, SearchUsers, UserResponseSchema
 from utilities.auth_utils import get_hashed_password,get_current_user,RoleChecker
 
 router = APIRouter(
@@ -13,22 +15,21 @@ router = APIRouter(
     prefix = "/services"
 )
 
-
 @router.get("/check_user_details")
 def check_all_users(allowed_role : bool = Depends(RoleChecker(["ADMIN"]))):
     return "Admin Access Provided" if allowed_role else "Access Denied."
 
-@router.get("/view_user_data")
-def view_user_data(user = Depends(get_current_user), db: Session = Depends(get_db)):
+@router.get("/view_user_data", response_model = Page[UserResponseSchema])
+def view_user_data(user = Depends(get_current_user), db: Session = Depends(get_db)) -> Page[UserResponseSchema]:
     try:
         """This API is to view all details of all users which can be done only by admin. 
             If other user tries to view they can only view their details."""
         if user.role.value == "ADMIN":
-            user_query = db.query(Users).filter(Users.is_active == True).all()
+            user_query = db.query(Users).filter(Users.is_active == True)
         else:
-            user_query = db.query(Users).filter(Users.username == user.username, Users.is_active == True).first()
+            user_query = db.query(Users).filter(Users.username == user.username, Users.is_active == True)
         
-        return user_query
+        return paginate(user_query)
     
     except Exception:
         traceback.print_exc()

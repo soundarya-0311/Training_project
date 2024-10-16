@@ -23,3 +23,12 @@ class EditUserDetails(BaseModel):
 class SearchUsers(BaseModel):
     username: Optional[str] = None
     role: Optional[str] = None
+
+class UserResponseSchema(BaseModel):
+    id: int
+    username: str
+    email: str
+    role: str
+
+    class Config:
+        from_attributes = True
