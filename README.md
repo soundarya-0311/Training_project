@@ -30,12 +30,13 @@ pip install -r requirements.txt
 ### Configuration
 
 Create a '.env' file and enter the secrets into it. Here you can add the following:
-For jwt token:
+
+**For jwt token:**
 ```plaintext
 SECRET_KEY = "yoursecretkey" 
 ALGORITHM = "algorithm"  
 ```
-For database credentials:
+**For database credentials:**
 ```plaintext
 username = <username>
 password = <password>
