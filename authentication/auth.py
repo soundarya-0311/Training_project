@@ -1,6 +1,7 @@
 import traceback
+from typing import List
 from datetime import datetime, timezone, timedelta
-from fastapi import APIRouter,Depends,HTTPException,status
+from fastapi import APIRouter,Depends,HTTPException,status,Request
 from fastapi.responses import JSONResponse
 from fastapi.security import OAuth2PasswordRequestForm
 from sqlalchemy.orm import Session, joinedload
@@ -54,7 +55,7 @@ def user_registeration(user: RegisterCredentials, role: rolename, db: Session = 
         )
         
 @router.post('/login')
-def login(formdata: OAuth2PasswordRequestForm = Depends(), db: Session = Depends(get_db)):
+def login(request: Request,formdata: OAuth2PasswordRequestForm = Depends(), db: Session = Depends(get_db)):
     try:
         user = db.query(Users).filter(Users.username == formdata.username, Users.is_active == True).first()
         if not user or not verify_password(formdata.password, user.hashed_password):
@@ -67,10 +68,17 @@ def login(formdata: OAuth2PasswordRequestForm = Depends(), db: Session = Depends
         access_token = create_access_token(data = {"sub": user.username, "role" : str(user.role.value)})
         refresh_token = create_refresh_token(data = {"sub" : user.username, "role" : str(user.role.value)})
         
+        #Capture device_info and IP_address for session management for security purposes
+        device_info = request.headers.get("User-Agent", "Unknown Device")
+        ip_address = request.client.host
+        
         tokentable = JWT_Tokens(user_id = user.id, 
                                 access_token = access_token, 
                                 refresh_token = refresh_token, 
-                                refresh_token_expiration = datetime.now(timezone.utc) + timedelta(minutes = REFRESH_TOKEN_EXPIRE_MINUTES))
+                                refresh_token_expiration = datetime.now(timezone.utc) + timedelta(minutes = REFRESH_TOKEN_EXPIRE_MINUTES),
+                                device_info = device_info,
+                                ip_address = ip_address,
+                                last_activity = datetime.now(timezone.utc))
         db.add(tokentable)
         db.commit()
         
@@ -193,4 +201,72 @@ def refresh_token(refresh_token: str, db: Session = Depends(get_db)):
             status_code = status.HTTP_500_INTERNAL_SERVER_ERROR,
             content = {"message" : "Something Went Wrong"}
         )
+
+@router.get("/active_session")
+def get_active_sessions(current_user = Depends(get_current_user), db: Session = Depends(get_db)):
+    try:
+        """This API will allow users to check their active session to check whether their account is in good status and not hacked.
+           Eg. In google we will have an option to view our current sessions to know whether any new unknown logins are there to
+           logout from that device and secure our account. This api is that kind of one where users can view their loggedin sessions/devices."""
         
+        active_sessions = db.query(JWT_Tokens).filter(JWT_Tokens.user_id == current_user.id, JWT_Tokens.is_active == True).all()
+        
+        if not active_sessions:
+            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail = "No Active Sessions so far.")
+        
+        return JSONResponse(
+            status_code=status.HTTP_200_OK,
+            content={"active_sessions": [
+                {"id": session.id,
+                 "device_info": session.device_info, 
+                 "ip_address": session.ip_address, 
+                 "last_activity": session.last_activity.isoformat()} for session in active_sessions]
+            }
+        )
+        
+    except HTTPException as e:
+        traceback.print_exc()
+        return JSONResponse(
+            status_code = e.status_code,
+            content = e.detail
+        )
+    
+    except Exception:
+        traceback.print_exc()
+        return JSONResponse(
+            status_code = status.HTTP_500_INTERNAL_SERVER_ERROR,
+            content = {"message" : "Something Went Wrong"}
+        )
+
+@router.post("/logout_other_devices")
+def logout_other_devices(session_ids: List[int], current_user = Depends(get_current_user), db: Session = Depends(get_db)):
+    try:
+        """This API allows users to logout from other or unknown devices after checking active sessions."""
+        existing_sessions = db.query(JWT_Tokens).filter(JWT_Tokens.user_id == current_user.id, JWT_Tokens.id.in_(session_ids), JWT_Tokens.is_active == True).all()
+        if not existing_sessions:
+            raise HTTPException(status_code = status.HTTP_404_NOT_FOUND, detail = "No sessions available")
+        
+        for session in existing_sessions:
+            session.is_active = False
+            db.add(session)
+        
+        db.commit()
+        
+        return JSONResponse(
+            status_code=status.HTTP_200_OK,
+            content={"message": "Logged out from other devices successfully."}
+        )
+    
+    except HTTPException as e:
+        traceback.print_exc()
+        return JSONResponse(
+            status_code = e.status_code,
+            content = e.detail
+        )
+    
+    except Exception:
+        traceback.print_exc()
+        return JSONResponse(
+            status_code = status.HTTP_500_INTERNAL_SERVER_ERROR,
+            content = {"message" : "Something Went Wrong"}
+        )
