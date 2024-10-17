@@ -63,6 +63,22 @@ def get_current_user(token: str = Depends(oauth2_scheme), db: Session = Depends(
             detail = "Login to access",
             headers = {"WWW-Authenticate" : "Bearer"},
         )
+        
+    #Check for inactivity
+    inactive_time_limit = timedelta(minutes = 15)
+    if datetime.now(timezone.utc) - db_token.last_activity > inactive_time_limit:
+        db_token.is_active = False
+        db.add(db_token)
+        db.commit()
+        raise HTTPException(
+            status_code = status.HTTP_401_UNAUTHORIZED, detail = "Session Expired Due to Inactivity. Please login again.",
+            headers = {"WWW-Authenticate" : "Bearer"}
+        )
+    #Update last activity
+    db_token.last_activity = datetime.now(timezone.utc)
+    db.add(db_token)
+    db.commit()    
+    
     username = verify_token(token)[0]
     if username is None:
         raise HTTPException(
