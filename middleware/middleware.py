@@ -10,7 +10,7 @@ class CustomMiddleware(BaseHTTPMiddleware):
     async def dispatch(self, request, call_next):
         try:
             # Skip authentication for publicly accessible paths
-            if request.url.path in ["/docs", "/openapi.json", "/favicon.ico", "/auth/login", "/auth/user_register"]:
+            if request.url.path in ["/docs", "/openapi.json", "/favicon.ico", "/auth/login", "/auth/user_register", "/auth/refresh_token"]:
                 return await call_next(request)
             token = request.headers.get("Authorization")
             if token and token.startswith("Bearer"):
@@ -73,7 +73,7 @@ def grant_access(user_role, required_permission):
 class RBACMiddleware(BaseHTTPMiddleware):
     async def dispatch(self, request, call_next):
         try:               
-            if request.url.path in ["/docs", "/openapi.json", "/favicon.ico", "/auth/login", "/auth/user_register", "/auth/logout"]:
+            if request.url.path in ["/docs", "/openapi.json", "/favicon.ico", "/auth/login", "/auth/user_register", "/auth/logout", "/auth/refresh_token"]:
                     return await call_next(request)
             token = request.headers.get("Authorization")
             if token and token.startswith("Bearer"):
