@@ -52,7 +52,7 @@ def view_user_data(user = Depends(get_current_user), db: Session = Depends(get_d
         else:
             user_query = db.query(Users).filter(Users.username == user.username, Users.is_active == True)
         
-        return paginate(user_query)            
+        return paginate(user_query)           
     
     except Exception:
         traceback.print_exc()
@@ -66,7 +66,16 @@ def view_specific_user(user_id: int, user = Depends(get_current_user), db: Sessi
     try:
         """This API used to view details of specific user and this is an admin only accessible route"""
         user_query = db.query(Users).filter(Users.id == user_id,Users.is_active == True).first()
-        return user_query
+
+        return JSONResponse(
+            status_code=status.HTTP_200_OK,
+            content = {
+                "user_id": user_query.id,
+                "username": user_query.username,
+                "role": user_query.role.value,
+                "email": user_query.email
+            }
+        )
     except Exception:
         traceback.print_exc()
         return JSONResponse(
@@ -171,7 +180,15 @@ def search_users(search_details: SearchUsers, current_user = Depends(get_current
         if not search_users_query:
             raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail = "Invalid Username or role.")
         
-        return search_users_query
+        return JSONResponse(
+            status_code = status.HTTP_200_OK,
+            content = {"Users Data": [{
+                "user_id" : user.id,
+                "username" : user.username,
+                "email" : user.email,
+                "role" : user.role.value 
+            } for user in search_users_query]}
+        )
     
     except HTTPException as e:
         traceback.print_exc()
@@ -200,7 +217,15 @@ def filter_users(user_status: bool, current_user = Depends(get_current_user), db
         if not track_status_query:
             raise HTTPException(status_code = status.HTTP_404_NOT_FOUND, detail = "No Recent User Activity Found")
         
-        return track_status_query
+        return JSONResponse(
+            status_code = status.HTTP_200_OK,
+            content = {"Users Data": [{
+                "user_id" : user.id,
+                "username" : user.username,
+                "email" : user.email,
+                "role" : user.role.value 
+            } for user in track_status_query]}
+        )
     
     except HTTPException as e:
         traceback.print_exc()
@@ -231,14 +256,13 @@ def user_reports(current_user = Depends(get_current_user), db: Session = Depends
         active_users_recent = datetime.now(timezone.utc) - timedelta(minutes = 30)
         active_users = db.query(distinct(Users.id)).join(JWT_Tokens, Users.id == JWT_Tokens.user_id).\
             filter(JWT_Tokens.is_active == True, JWT_Tokens.updated_ts >= active_users_recent).count()
-        
-        report = {
-            "total_users" :  total_users,
+                
+        return JSONResponse(
+            status_code = status.HTTP_200_OK,
+            content = { "total_users" :  total_users,
             "recent_registrations" : recent_registrations,
-            "currently_active_users" : active_users 
-        }
-        
-        return report
+            "currently_active_users" : active_users }
+        )
     
     except Exception:
         traceback.print_exc()
