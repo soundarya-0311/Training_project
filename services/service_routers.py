@@ -4,6 +4,7 @@ from fastapi import APIRouter,Depends,HTTPException,status
 from fastapi.responses import JSONResponse
 from fastapi_pagination import Page 
 from fastapi_pagination.ext.sqlalchemy import paginate
+from sqlalchemy import distinct
 from sqlalchemy.orm import Session
 from database.database import get_db
 from database.models import Users, JWT_Tokens
@@ -194,10 +195,52 @@ def filter_users(user_status: bool, current_user = Depends(get_current_user), db
         recent_update = datetime.now(timezone.utc) - timedelta(minutes = 30) 
         track_status_query = db.query(Users).join(JWT_Tokens, Users.id == JWT_Tokens.user_id).\
                              filter(JWT_Tokens.is_active == user_status, JWT_Tokens.updated_ts >= recent_update).all()
+        if not track_status_query:
+            raise HTTPException(status_code = status.HTTP_404_NOT_FOUND, detail = "No Recent User Activity Found")
+        
         return track_status_query
+    
+    except HTTPException as e:
+        traceback.print_exc()
+        return JSONResponse(
+        status_code= e.status_code,
+        content = e.detail
+    )
+        
     except Exception:
         traceback.print_exc()
         return JSONResponse(
             status_code = status.HTTP_500_INTERNAL_SERVER_ERROR,
             content = {"message":"Something Went Wrong"}
+        )
+
+@router.get("/user_reports")
+def user_reports(current_user = Depends(get_current_user), db: Session = Depends(get_db)):
+    try:
+        """This is an Admin only Accessible route which is used to generate basic user reports.
+           Count of recent registrations, active users, total users available.
+           Recent registrations will be based on users registered in a week from the time of hitting the api. 
+           Active users based on last 30 minutes of activity."""
+        total_users = db.query(Users).filter(Users.is_active == True).count()
+        
+        recent_registration_time = datetime.now(timezone.utc) - timedelta(days = 7)
+        recent_registrations = db.query(Users).filter(Users.created_ts >= recent_registration_time, Users.is_active == True).count()
+        
+        active_users_recent = datetime.now(timezone.utc) - timedelta(minutes = 30)
+        active_users = db.query(distinct(Users.id)).join(JWT_Tokens, Users.id == JWT_Tokens.user_id).\
+            filter(JWT_Tokens.is_active == True, JWT_Tokens.updated_ts >= active_users_recent).count()
+        
+        report = {
+            "total_users" :  total_users,
+            "recent_registrations" : recent_registrations,
+            "currently_active_users" : active_users 
+        }
+        
+        return report
+    
+    except Exception:
+        traceback.print_exc()
+        return JSONResponse(
+            status_code = status.HTTP_500_INTERNAL_SERVER_ERROR,
+            content = {"message" : "Something went wrong"}
         )
