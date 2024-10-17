@@ -1,4 +1,5 @@
 from sqlalchemy import Column, Integer,String,Boolean,DateTime,ForeignKey,Enum
+from sqlalchemy.orm import relationship
 from datetime import datetime
 from database.database import Base
 from database.db_enum import role
@@ -19,6 +20,8 @@ class Users(BaseModel):
     email = Column(String, unique=True, nullable=False)
     hashed_password = Column(String, nullable = False)
     role = Column(Enum(role), nullable = False)
+    
+    jwt_tokens = relationship("JWT_Tokens", back_populates = "user")
 
 class JWT_Tokens(BaseModel):
     __tablename__ = "jwt_tokens"
@@ -28,3 +31,6 @@ class JWT_Tokens(BaseModel):
     user_id = Column(Integer, ForeignKey("users.id"))
     access_token = Column(String, unique=True, nullable=False)
     refresh_token = Column(String, nullable=False)
+    refresh_token_expiration = Column(DateTime(timezone=True), nullable = False)
+    
+    user = relationship("Users", back_populates="jwt_tokens")

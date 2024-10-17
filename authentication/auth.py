@@ -1,12 +1,13 @@
 import traceback
+from datetime import datetime, timezone, timedelta
 from fastapi import APIRouter,Depends,HTTPException,status
 from fastapi.responses import JSONResponse
 from fastapi.security import OAuth2PasswordRequestForm
-from sqlalchemy.orm import Session
+from sqlalchemy.orm import Session, joinedload
 from database.database import get_db
 from database.models import Users, JWT_Tokens
 from schemas.schemas import RegisterCredentials, rolename
-from utilities.auth_utils import get_hashed_password,verify_password,create_access_token,create_refresh_token,get_current_user,oauth2_scheme
+from utilities.auth_utils import get_hashed_password,verify_password,create_access_token,create_refresh_token,get_current_user,oauth2_scheme,REFRESH_TOKEN_EXPIRE_MINUTES
 
 router = APIRouter(
     tags=["Authentication and Authorization"],
@@ -66,7 +67,10 @@ def login(formdata: OAuth2PasswordRequestForm = Depends(), db: Session = Depends
         access_token = create_access_token(data = {"sub": user.username, "role" : str(user.role.value)})
         refresh_token = create_refresh_token(data = {"sub" : user.username, "role" : str(user.role.value)})
         
-        tokentable = JWT_Tokens(user_id = user.id, access_token = access_token, refresh_token = refresh_token)
+        tokentable = JWT_Tokens(user_id = user.id, 
+                                access_token = access_token, 
+                                refresh_token = refresh_token, 
+                                refresh_token_expiration = datetime.now(timezone.utc) + timedelta(minutes = REFRESH_TOKEN_EXPIRE_MINUTES))
         db.add(tokentable)
         db.commit()
         
@@ -121,3 +125,72 @@ def logout(user = Depends(get_current_user) , token = Depends(oauth2_scheme),db:
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             content = {"message" : "Something Went Wrong"}
         )
+
+@router.post("/refresh_token")
+def refresh_token(refresh_token: str, db: Session = Depends(get_db)):
+    try:
+        """This API is to generate new access token using refresh token.
+           Whenever user logs in access token and refresh token will be created where access token will have short 
+           expiration time and refresh token will have long expiration time.This is to prevent user login frequently. 
+           If an access token gets expired instead of logging in again, frontend will pass the corresponding refresh 
+           token to this endpoint and this endpoint will check whether the refresh token is valid and not expired and 
+           if so it will automatically generate a new access token and pass so user can continue using without logging in again.
+           Advantages : To prevent frequent logins, To make the web/app highly secured as we can invalidate the session 
+           whenever any suscpicious activity is sensed.
+           Flow of the usage:
+            1. **Login**:
+                - User → Logs in → Receives access token and refresh token from backend.
+            2. **API Request**:
+                - User → Makes request with access token → Backend validates token.
+
+            3. **Token Expiration**:
+                - User → Access token expires → Frontend detects expiration.
+
+            4. **Refresh Token Request**:
+                - Frontend → Sends refresh token to refresh endpoint → Backend verifies refresh token.
+
+            5. **New Tokens**:
+                - Backend → Issues new access token (and possibly a new refresh token) → Frontend updates stored tokens."""
+                
+        refresh_token_query = db.query(JWT_Tokens).options(joinedload(JWT_Tokens.user)).\
+            filter(JWT_Tokens.refresh_token == refresh_token, JWT_Tokens.is_active == True).first()
+        if not refresh_token_query:
+            raise HTTPException(status_code = status.HTTP_403_FORBIDDEN, detail = "Refresh Token not valid.")
+        
+        if refresh_token_query.refresh_token_expiration < datetime.now(timezone.utc):
+            raise HTTPException(status_code = status.HTTP_403_FORBIDDEN, detail = "Refresh Token Expired. Login Again.")
+       
+        
+        new_access_token = create_access_token(data = {"sub": refresh_token_query.user.username, "role" : str(refresh_token_query.user.role.value)})
+        
+        new_access_token_record = JWT_Tokens(
+            user_id = refresh_token_query.user_id,
+            access_token = new_access_token,
+            refresh_token = refresh_token_query.refresh_token,
+            refresh_token_expiration = refresh_token_query.refresh_token_expiration
+        )
+        
+        db.add(new_access_token_record)
+        db.commit()
+        
+        return JSONResponse(
+            status_code = status.HTTP_200_OK,
+            content = {"access_token" : new_access_token, "token_type" :  "Bearer"}
+        )
+    
+    except HTTPException as e:
+        db.rollback()
+        traceback.print_exc()
+        return JSONResponse(
+            status_code = e.status_code,
+            content = e.detail
+        )
+    
+    except Exception:
+        db.rollback()
+        traceback.print_exc()
+        return JSONResponse(
+            status_code = status.HTTP_500_INTERNAL_SERVER_ERROR,
+            content = {"message" : "Something Went Wrong"}
+        )
+        
