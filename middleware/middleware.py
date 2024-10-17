@@ -58,7 +58,7 @@ async def log_middleware(request: Request, call_next):
 
 #Structure for rbac
 Roles = {
-    "admin" : ["/services/check_user_details","/services/view_user_data", "/services/view_specific_user", "/services/delete_user_details", "/services/edit_user_details", "/services/search_users", "/services/filter_users"],
+    "admin" : ["/services/check_user_details","/services/view_user_data", "/services/view_specific_user", "/services/delete_user_details", "/services/edit_user_details", "/services/search_users", "/services/filter_users", "/services/user_reports"],
     "user" : ["/services/view_user_data", "/services/delete_user_details", "/services/edit_user_details", "/services/search_users"]
 }
 
