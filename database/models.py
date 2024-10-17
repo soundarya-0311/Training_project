@@ -1,6 +1,6 @@
 from sqlalchemy import Column, Integer,String,Boolean,DateTime,ForeignKey,Enum
 from sqlalchemy.orm import relationship
-from datetime import datetime
+from datetime import datetime,timezone
 from database.database import Base
 from database.db_enum import role
 
@@ -32,5 +32,8 @@ class JWT_Tokens(BaseModel):
     access_token = Column(String, unique=True, nullable=False)
     refresh_token = Column(String, nullable=False)
     refresh_token_expiration = Column(DateTime(timezone=True), nullable = False)
+    device_info = Column(String)
+    ip_address = Column(String)
+    last_activity = Column(DateTime(timezone=True), default = datetime.now(timezone.utc))
     
     user = relationship("Users", back_populates="jwt_tokens")
