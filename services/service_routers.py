@@ -1,7 +1,9 @@
 import traceback
+import io
 from datetime import datetime, timezone, timedelta
+import pandas as pd
 from fastapi import APIRouter,Depends,HTTPException,status
-from fastapi.responses import JSONResponse
+from fastapi.responses import JSONResponse, StreamingResponse
 from fastapi_pagination import Page 
 from fastapi_pagination.ext.sqlalchemy import paginate
 from sqlalchemy import distinct
@@ -244,3 +246,53 @@ def user_reports(current_user = Depends(get_current_user), db: Session = Depends
             status_code = status.HTTP_500_INTERNAL_SERVER_ERROR,
             content = {"message" : "Something went wrong"}
         )
+
+@router.get("/report_csv")
+def user_report_csv(current_user = Depends(get_current_user), db: Session = Depends(get_db)):
+    try:
+        """Admin only accessible route which is used to generate reports as well as to save locally as a CSV file."""
+        user_query = db.query(Users).filter(Users.is_active == True).all()
+                
+        # Serialize user data into a list of dictionaries
+        users_data = [
+            {
+                "id": user.id,
+                "username": user.username,
+                "email": user.email,
+                "role": user.role.value
+            }
+            for user in user_query
+        ]
+                
+        total_users = db.query(Users).filter(Users.is_active == True).count()
+        
+        recent_registration_time = datetime.now(timezone.utc) - timedelta(days = 7)
+        recent_registrations = db.query(Users).filter(Users.created_ts >= recent_registration_time, Users.is_active == True).count()
+        
+        active_users_recent = datetime.now(timezone.utc) - timedelta(minutes = 30)
+        active_users = db.query(distinct(Users.id)).join(JWT_Tokens, Users.id == JWT_Tokens.user_id).\
+            filter(JWT_Tokens.is_active == True, JWT_Tokens.updated_ts >= active_users_recent).count()
+        
+        summary_data = {
+            "Total Users" : [total_users],
+            "Recent Registrations (last 7 days)" : [recent_registrations],
+            "Currently Active Users (last 30 minutes)" : [active_users]
+        }
+        
+        report_df = pd.DataFrame(summary_data)
+        users_df = pd.DataFrame(users_data)
+        user_report_df = pd.concat([report_df, users_df], axis = 1)
+        
+        output = io.StringIO() #to create an in memory temporary file.
+        user_report_df.to_csv(output, index = False)
+        
+        return StreamingResponse(iter([output.getvalue()]),headers = {"Content-Disposition" : "attachment; filename = user_reports.csv"}, media_type = "text/csv")
+        
+        
+    except Exception:
+        traceback.print_exc()
+        return JSONResponse(
+            status_code = status.HTTP_500_INTERNAL_SERVER_ERROR,
+            content = {"message" : "Something Went Wrong"}
+        )
+        
