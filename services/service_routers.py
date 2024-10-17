@@ -17,7 +17,26 @@ router = APIRouter(
 
 @router.get("/check_user_details")
 def check_all_users(allowed_role : bool = Depends(RoleChecker(["ADMIN"]))):
-    return "Admin Access Provided" if allowed_role else "Access Denied."
+    try:
+        if not allowed_role:
+            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail = "Access Denied")
+        
+        return JSONResponse(
+                status_code = status.HTTP_200_OK,
+                content = {"message" : "Admin Access Provided"})
+            
+    except HTTPException as e:
+        traceback.print_exc()
+        return JSONResponse(
+            status_code=e.status_code,
+            content = e.detail
+        )
+    except Exception:
+        traceback.print_exc()
+        return JSONResponse(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            content = {"message" : "Something Went Wrong"}
+        ) 
 
 @router.get("/view_user_data", response_model = Page[UserResponseSchema])
 def view_user_data(user = Depends(get_current_user), db: Session = Depends(get_db)) -> Page[UserResponseSchema]:
@@ -30,7 +49,7 @@ def view_user_data(user = Depends(get_current_user), db: Session = Depends(get_d
         else:
             user_query = db.query(Users).filter(Users.username == user.username, Users.is_active == True)
         
-        return paginate(user_query)
+        return paginate(user_query)            
     
     except Exception:
         traceback.print_exc()
